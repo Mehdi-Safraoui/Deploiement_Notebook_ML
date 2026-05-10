@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amazon Sales Dashboard — ML Deployment</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      🛒 Amazon Sales <span>Dashboard</span>
+    </div>
+    <nav>
+      <a href="#" class="active" data-section="overview">Vue d'ensemble</a>
+      <a href="#" data-section="dso1">DSO1 — Ventes</a>
+      <a href="#" data-section="dso2">DSO2 — Segmentation</a>
+      <a href="#" data-section="dso3">DSO3 — Recommandation</a>
+    </nav>
+    <div class="status-dot" id="apiDot" title="Statut API"></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION: OVERVIEW                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="overview" class="active">
+    <div class="section-title">Vue d'ensemble <span class="badge">Amazon Sales ML</span></div>
+    <p class="section-subtitle">
+      Analyse et déploiement de 3 objectifs Data Science sur le dataset Amazon Sales (50 000 transactions).
+    </p>
+
+    <!-- Dataset chips -->
+    <div class="dataset-info">
+      <div class="info-chip">📦 <strong id="rowCount">50 000</strong> transactions</div>
+      <div class="info-chip">📋 <strong>13</strong> variables</div>
+      <div class="info-chip">🏷️ <strong id="productCount">4 000</strong> produits uniques</div>
+      <div class="info-chip">⚙️ API : <strong id="apiStatus">vérification…</strong></div>
+    </div>
+
+    <!-- DSO cards -->
+    <div class="card-grid">
+
+      <!-- DSO1 -->
+      <div class="card dso-card" onclick="navigate('dso1')">
+        <div class="dso-number">DSO 1</div>
+        <h3>Prédiction des Ventes</h3>
+        <div class="metric">
+          <span class="metric-value" id="dso1Rmse">7 174</span>
+          <span class="metric-label">RMSE (ARIMA)</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-top:4px">
+          6 modèles comparés sur split 80/20 chronologique
+        </p>
+        <div class="best-model">🏆 ARIMA — Wissem Ferjani</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <!-- DSO2 -->
+      <div class="card dso-card" onclick="navigate('dso2')">
+        <div class="dso-number">DSO 2</div>
+        <h3>Segmentation Produits</h3>
+        <div class="metric">
+          <span class="metric-value" id="dso2Sil">0.53</span>
+          <span class="metric-label">Silhouette (DBSCAN)</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-top:4px">
+          K-Means, DBSCAN + SVM (acc. 99 %)
+        </p>
+        <div class="best-model">🏆 DBSCAN — Jawher Macherki</div>
+        <div class="arrow">→</div>
+      </div>
+
+      <!-- DSO3 -->
+      <div class="card dso-card" onclick="navigate('dso3')">
+        <div class="dso-number">DSO 3</div>
+        <h3>Recommandation Produits</h3>
+        <div class="metric">
+          <span class="metric-value">99 %</span>
+          <span class="metric-label">Accuracy (SVM classif.)</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-muted);margin-top:4px">
+          Cosinus · Arbre de Décision · Random Forest
+        </p>
+        <div class="best-model">🏆 Random Forest — Yassin Saoud</div>
+        <div class="arrow">→</div>
+      </div>
+
+    </div>
+
+    <!-- Summary table loaded from API -->
+    <div class="card">
+      <h3 style="margin-bottom:16px;font-size:1rem">📊 Synthèse des modèles déployés</h3>
+      <table class="model-table" id="summaryTable">
+        <thead>
+          <tr>
+            <th>DSO</th>
+            <th>Algorithme</th>
+            <th>Auteur</th>
+            <th>Métrique</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="summaryBody">
+          <tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION: DSO1 — Sales Forecast                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="dso1">
+    <div class="section-title">
+      📈 Prédiction des Ventes Futures
+      <span class="badge">ARIMA</span>
+    </div>
+    <p class="section-subtitle">
+      Meilleur modèle : <strong>ARIMA</strong> (RMSE = 7 174.07) — Wissem Ferjani.
+      Entraîné sur 584 jours de données journalières agrégées (split 80/20).
+    </p>
+
+    <div class="two-col">
+
+      <!-- Left: controls -->
+      <div class="card">
+        <h4 style="margin-bottom:14px;font-size:.95rem;font-weight:700">⚙️ Paramètres</h4>
+
+        <label class="form-group">
+          <span>Horizon de prévision</span>
+        </label>
+        <div class="quick-select" id="dayQuick">
+          <button class="quick-btn" data-val="7">7j</button>
+          <button class="quick-btn selected" data-val="30">30j</button>
+          <button class="quick-btn" data-val="60">60j</button>
+          <button class="quick-btn" data-val="90">90j</button>
+          <button class="quick-btn" data-val="180">180j</button>
+        </div>
+        <div class="slider-container">
+          <input type="range" id="daysSlider" min="7" max="365" value="30" step="1">
+          <div class="slider-value"><span id="daysVal">30</span> j</div>
+        </div>
+
+        <button class="btn btn-primary" id="forecastBtn" onclick="runForecast()">
+          🔮 Lancer la prévision
+        </button>
+
+        <div class="loader" id="forecastLoader" style="margin-top:12px">
+          <div class="spinner"></div> Calcul ARIMA…
+        </div>
+
+        <!-- Comparaison rapide -->
+        <div style="margin-top:24px">
+          <h4 style="font-size:.9rem;font-weight:700;margin-bottom:10px">Comparaison des 6 modèles</h4>
+          <table class="model-table" id="dso1Table">
+            <thead><tr><th>Modèle</th><th>RMSE</th><th>Performance</th></tr></thead>
+            <tbody id="dso1Body">
+              <tr><td colspan="3" style="color:var(--text-muted);font-size:.82rem">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right: chart -->
+      <div class="card">
+        <div id="dso1Alert" class="alert alert-warning"></div>
+        <h4 style="margin-bottom:16px;font-size:.95rem;font-weight:700">Prévisions journalières (USD)</h4>
+        <div class="chart-wrapper">
+          <canvas id="forecastChart"></canvas>
+        </div>
+        <p style="font-size:.78rem;color:var(--text-muted);margin-top:10px;text-align:center">
+          Zone grisée = intervalle de confiance 95 % · Ligne orange = prévision ARIMA
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION: DSO2 — Product Segmentation                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="dso2">
+    <div class="section-title">
+      🗂️ Segmentation des Produits
+      <span class="badge">DBSCAN · K-Means</span>
+    </div>
+    <p class="section-subtitle">
+      Meilleur modèle non-supervisé : <strong>DBSCAN</strong> (Silhouette = 0.53 vs 0.32 K-Means).
+      Entrez les métriques d'un produit pour identifier son segment via K-Means (predict).
+    </p>
+
+    <div class="two-col">
+
+      <!-- Left: form -->
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-size:.95rem;font-weight:700">🔍 Analyse d'un produit</h4>
+
+        <div class="form-group">
+          <label>Revenu total (USD)</label>
+          <input type="number" id="revenue" value="1875" min="0" step="50">
+          <div class="hint">Somme des ventes pour ce produit</div>
+        </div>
+        <div class="form-group">
+          <label>Quantité vendue</label>
+          <input type="number" id="quantity" value="12" min="0" step="1">
+          <div class="hint">Nombre total d'unités vendues</div>
+        </div>
+        <div class="form-group">
+          <label>Note moyenne (1–5)</label>
+          <input type="number" id="rating" value="3.5" min="1" max="5" step="0.1">
+          <div class="hint">Avis clients agrégés</div>
+        </div>
+
+        <button class="btn btn-primary" onclick="runSegment()">
+          🎯 Identifier le segment
+        </button>
+        <div class="loader" id="segLoader" style="margin-top:12px">
+          <div class="spinner"></div> Segmentation…
+        </div>
+      </div>
+
+      <!-- Right: result -->
+      <div>
+        <div class="segment-result hidden" id="segResult">
+          <div class="segment-emoji" id="segEmoji">📊</div>
+          <div class="segment-name" id="segName">—</div>
+          <div class="segment-desc" id="segDesc">—</div>
+          <div class="segment-tags" id="segTags"></div>
+          <div class="confidence-bar">
+            <label><span>Confiance</span><span id="confVal">—</span></label>
+            <div class="confidence-track">
+              <div class="confidence-fill" id="confBar" style="width:0%"></div>
+            </div>
+          </div>
+          <div class="segment-advice" id="segAdvice"></div>
+        </div>
+        <div class="card" id="segPlaceholder" style="text-align:center;padding:60px 24px;color:var(--text-muted)">
+          <div style="font-size:2.5rem">🗂️</div>
+          <p style="margin-top:12px">Renseignez les métriques produit et cliquez sur <em>Identifier le segment</em>.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Segment overview -->
+    <div style="margin-top:32px">
+      <h3 style="margin-bottom:16px;font-size:1rem;font-weight:700">📌 Les 4 segments identifiés</h3>
+      <div class="segments-grid" id="segmentsGrid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- DSO2 comparison table -->
+    <div class="card" style="margin-top:24px">
+      <h4 style="margin-bottom:12px;font-size:.9rem;font-weight:700">Comparaison DBSCAN vs K-Means</h4>
+      <table class="model-table">
+        <thead><tr><th>Algorithme</th><th>Silhouette Score</th><th>Clusters</th><th>Auteur</th><th></th></tr></thead>
+        <tbody>
+          <tr class="best">
+            <td>🏆 DBSCAN</td>
+            <td>0.53</td>
+            <td>Auto (densité)</td>
+            <td>Jawher Macherki</td>
+            <td><span class="crown">★ Best</span></td>
+          </tr>
+          <tr>
+            <td>K-Means</td>
+            <td>0.32</td>
+            <td>4 clusters</td>
+            <td>Ameni Chakroun</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>SVM Classification</td>
+            <td>—</td>
+            <td>Accuracy 99 %</td>
+            <td>Ameni Chakroun</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION: DSO3 — Product Recommendation                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="dso3">
+    <div class="section-title">
+      🤝 Recommandation de Produits
+      <span class="badge">Random Forest</span>
+    </div>
+    <p class="section-subtitle">
+      Meilleur modèle : <strong>Random Forest</strong> — Yassin Saoud.
+      Entrez les caractéristiques d'un produit pour obtenir 5 recommandations similaires.
+    </p>
+
+    <div class="two-col">
+
+      <!-- Left: form -->
+      <div class="card">
+        <h4 style="margin-bottom:16px;font-size:.95rem;font-weight:700">🛒 Produit de référence</h4>
+
+        <div class="form-group">
+          <label>Catégorie</label>
+          <select id="recCategory">
+            <option>Beauty</option>
+            <option>Books</option>
+            <option>Clothing</option>
+            <option selected>Electronics</option>
+            <option>Home</option>
+            <option>Sports</option>
+            <option>Toys</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Prix (USD)</label>
+          <input type="number" id="recPrice" value="100" min="1" step="1">
+        </div>
+        <div class="form-group">
+          <label>Note (1–5)</label>
+          <input type="number" id="recRating" value="4.0" min="1" max="5" step="0.1">
+        </div>
+        <div class="form-group">
+          <label>Nombre de recommandations</label>
+          <input type="number" id="recTopN" value="5" min="1" max="10" step="1">
+        </div>
+
+        <button class="btn btn-primary" onclick="runRecommend()">
+          ✨ Obtenir des recommandations
+        </button>
+        <div class="loader" id="recLoader" style="margin-top:12px">
+          <div class="spinner"></div> Calcul Random Forest…
+        </div>
+      </div>
+
+      <!-- Right: results -->
+      <div>
+        <div id="recQuality" style="display:none;margin-bottom:16px"></div>
+        <div class="card" id="recPlaceholder" style="text-align:center;padding:60px 24px;color:var(--text-muted)">
+          <div style="font-size:2.5rem">🤝</div>
+          <p style="margin-top:12px">Renseignez un produit de référence et cliquez sur <em>Obtenir des recommandations</em>.</p>
+        </div>
+        <div class="rec-grid" id="recGrid" style="display:none"></div>
+      </div>
+
+    </div>
+
+    <!-- DSO3 comparison table -->
+    <div class="card" style="margin-top:28px">
+      <h4 style="margin-bottom:12px;font-size:.9rem;font-weight:700">Comparaison des 3 méthodes de recommandation</h4>
+      <table class="model-table">
+        <thead>
+          <tr><th>Méthode</th><th>Approche</th><th>Auteur</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr class="best">
+            <td>🏆 Random Forest</td>
+            <td>Classification qualité produit</td>
+            <td>Yassin Saoud</td>
+            <td><span class="crown">★ Best</span></td>
+          </tr>
+          <tr>
+            <td>Arbre de Décision</td>
+            <td>Classification qualité produit</td>
+            <td>Jawher Macherki</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Similarité Cosinus</td>
+            <td>Contenu (Catégorie, Prix, Note)</td>
+            <td>Yassmine Ben Belgacem</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script src="/js/main.js"></script>
+</body>
+</html>

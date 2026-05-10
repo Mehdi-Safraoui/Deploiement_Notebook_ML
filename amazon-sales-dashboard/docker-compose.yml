@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+
+  api:
+    build:
+      context: ..
+      dockerfile: amazon-sales-dashboard/Dockerfile.api
+    container_name: amazon_ml_api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../trained_models:/app/trained_models:ro
+    environment:
+      - PORT=5000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: amazon_dashboard_web
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - API_URL=http://api:5000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
